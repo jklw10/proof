@@ -3,6 +3,7 @@ import Mathlib.Analysis.Calculus.Deriv.Mul
 import Mathlib.Analysis.SpecialFunctions.ExpDeriv
 import Mathlib.Data.Complex.Basic
 import Mathlib.Analysis.Complex.Basic
+import entropy.common
 
 noncomputable section
 set_option linter.style.whitespace false
@@ -34,7 +35,6 @@ theorem decoherence_deriv (ρ01_init : ℂ) (τ : ℝ) (hτ : 0 < τ) (t : ℝ) 
       ext y
       ring
     rw [h_eq]
-    -- We use `.congr_deriv (by ring)` to simplify `1 * (-1 / τ)` to `-1 / τ`
     exact (hasDerivAt_id' t).mul_const (-1 / τ) |>.congr_deriv (by ring)
 
   -- 2. Derivative of exp(-t / τ)
@@ -70,7 +70,6 @@ theorem disagreement_deriv (y_init : ℝ) (μ : ℝ) (t : ℝ) :
       ext v
       ring
     rw [h_eq]
-    -- We use `.congr_deriv (by ring)` to simplify `1 * (-2 * μ)` to `-2 * μ`
     exact (hasDerivAt_id' t).mul_const (-2 * μ) |>.congr_deriv (by ring)
 
   -- 2. Derivative of exp(-2 * μ * t)
@@ -98,4 +97,24 @@ theorem entropic_diffusion_isomorphism (τ : ℝ) (hτ : 0 < τ) (μ : ℝ) (h_m
   have h_τ_ne : τ ≠ 0 := ne_of_gt hτ
   field_simp
 
+-- =========================================================================
+-- PART 4: Connection to the Unified Process Model
+-- =========================================================================
+
+/-- Theorem: Consensus Decay rate mapped to the Unified Predictability correlation length ξ.
+    If the consensus rate is defined from the physical spatial scale ξ via μ = 1 / (2 * ξ),
+    the disagreement decay rate 2 * μ is identically equal to the spatial decay scale - log P.z. -/
+theorem process_consensus_isomorphism {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    (P : ExponentialCovarianceProcess ℝ E) (μ : ℝ) (h_map : μ = 1 / (2 * xi P.z)) :
+    2 * μ = - Real.log P.z := by
+  have h_xi_pos : 0 < xi P.z := xi_pos P.z P.hz0 P.hz1
+  have h_xi : xi P.z = -1 / Real.log P.z := rfl
+  rw [h_map, h_xi]
+  have h_log_neg : Real.log P.z < 0 := (log_neg_iff P.hz0).mpr P.hz1
+  have h_log_ne : Real.log P.z ≠ 0 := ne_of_lt h_log_neg
+  field_simp
+
+#print axioms process_consensus_isomorphism
+#print axioms entropic_diffusion_isomorphism
 #print axioms disagreement_deriv
+#print axioms decoherence_deriv

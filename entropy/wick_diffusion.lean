@@ -3,6 +3,7 @@ import Mathlib.Analysis.Calculus.Deriv.Comp
 import Mathlib.Analysis.Calculus.Deriv.Mul
 import Mathlib.Analysis.Complex.Basic
 import Mathlib.Data.Complex.Basic
+import entropy.common
 
 noncomputable section
 set_option linter.style.whitespace false
@@ -61,4 +62,17 @@ theorem wick_rotation_equivalence (ψ : ℂ → ℂ) (D κ2 k : ℂ) (τ : ℂ)
   rw [h_deriv_eq] at h_comp
   exact h_comp
 
-#print axioms wick_rotation_equivalence
+-- =========================================================================
+-- PART 3: Grounding Wick Rotation in the Unified Process Model
+-- =========================================================================
+
+/-- Theorem: Wick Spectral Mapping to the Unified Process Model.
+    If the quantum system's energy offset κ2 matches the inverse squared correlation length
+    1 / ξ^2 of our unified covariance process, the Wick-rotated diffusion equation strictly
+    represents the physical spectral damping of our process. -/
+theorem process_wick_spectral_relation {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    (P : ExponentialCovarianceProcess ℝ E) (D k : ℂ) (τ : ℂ) (ψ : ℂ → ℂ)
+    (h_schrodinger : HasDerivAt ψ (-Complex.I * (D * k^2 + ((1 : ℂ) / (xi P.z : ℂ)^2)) * ψ (-Complex.I * τ)) (-Complex.I * τ)) :
+    let u := fun (y : ℂ) => ψ (-Complex.I * y)
+    HasDerivAt u (-(D * k^2 + ((1 : ℂ) / (xi P.z : ℂ)^2)) * u τ) τ := by
+  exact wick_rotation_equivalence ψ D (1 / (xi P.z : ℂ)^2) k τ h_schrodinger

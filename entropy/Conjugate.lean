@@ -1,5 +1,6 @@
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.Analysis.Calculus.Deriv.Basic
+import entropy.common
 
 noncomputable section
 set_option linter.style.whitespace false
@@ -79,4 +80,16 @@ theorem entropic_uncertainty_relation (C0 ξ Δk : ℝ)
   rw [Real.sqrt_one] at h_sqrt
   exact h_sqrt
 
-#print axioms entropic_uncertainty_relation
+-- =========================================================================
+-- PART 3: Uncertainty Grounded in the Unified Model
+-- =========================================================================
+
+/-- Theorem: Grounding the Uncertainty Relation in the Unified Process Model.
+    If we evaluate the uncertainty relation using the physical predictability
+    correlation length ξ defined in common.lean, the conjugate relationship holds. -/
+theorem process_uncertainty_relation {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    (P : ExponentialCovarianceProcess ℝ E) (Δk : ℝ) (hΔk : 0 < Δk)
+    (h_hwhm : IsHWHM P.C0 (xi P.z) Δk) :
+    (xi P.z) * Δk = 1 := by
+  have hξ : 0 < xi P.z := xi_pos P.z P.hz0 P.hz1
+  exact entropic_uncertainty_relation P.C0 (xi P.z) Δk P.hC0 hξ hΔk h_hwhm

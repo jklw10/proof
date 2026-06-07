@@ -21,7 +21,7 @@ def mutual_force (γ ξ x1 x2 : ℝ) : ℝ :=
   entropic_force γ ξ (x1 - x2)
 
 /-- Theorem: Newton's Third Law of Entropic Gravity.
-    The mutual force is symmetric but opposite in sign: F_12 = - F_21. -/
+    The mutual force is symmetric but opposite in sign. -/
 theorem mutual_force_symmetric (γ ξ x1 x2 : ℝ) (hγ : 0 < γ) (hξ : 0 < ξ) :
     mutual_force γ ξ x1 x2 = - mutual_force γ ξ x2 x1 := by
   unfold mutual_force entropic_force
@@ -30,8 +30,7 @@ theorem mutual_force_symmetric (γ ξ x1 x2 : ℝ) (hγ : 0 < γ) (hξ : 0 < ξ)
     rw [if_pos h, if_pos h_rev, neg_zero]
   · have h_ne : x1 - x2 ≠ 0 := h
     rcases lt_or_gt_of_ne h_ne with hlt | hgt
-    · -- Case: x1 - x2 < 0 (meaning x2 - x1 > 0)
-      have h_gt2 : x2 - x1 > 0 := by linarith
+    · have h_gt2 : x2 - x1 > 0 := by linarith
       have h_not_gt : ¬ x1 - x2 > 0 := by linarith
       have h_rev_ne : x2 - x1 ≠ 0 := ne_of_gt h_gt2
       rw [if_neg h_ne, if_neg h_not_gt]
@@ -39,8 +38,7 @@ theorem mutual_force_symmetric (γ ξ x1 x2 : ℝ) (hγ : 0 < γ) (hξ : 0 < ξ)
       have h_eq : -(x1 - x2) = x2 - x1 := by ring
       rw [h_eq]
       ring
-    · -- Case: x1 - x2 > 0 (meaning x2 - x1 < 0)
-      have h_lt2 : x2 - x1 < 0 := by linarith
+    · have h_lt2 : x2 - x1 < 0 := by linarith
       have h_not_gt2 : ¬ x2 - x1 > 0 := by linarith
       have h_rev_ne : x2 - x1 ≠ 0 := ne_of_lt h_lt2
       rw [if_neg h_ne, if_pos hgt]
@@ -53,9 +51,7 @@ theorem mutual_force_symmetric (γ ξ x1 x2 : ℝ) (hγ : 0 < γ) (hξ : 0 < ξ)
 -- PART 2: Asymptotic Monotonicity (Far-field vs Near-field)
 -- =========================================================================
 
-/-- Theorem: The force of entropic gravity strictly decays as distance increases.
-    For any separations r1 < r2, the magnitude of the force at r2 is strictly
-    smaller than at r1. -/
+/-- Theorem: The force of entropic gravity strictly decays as distance increases. -/
 theorem mutual_force_monotone (γ ξ r1 r2 : ℝ) (hγ : 0 < γ) (hξ : 0 < ξ)
     (hr1 : 0 < r1) (hr2 : r1 < r2) :
     |entropic_force γ ξ r2| < |entropic_force γ ξ r1| := by
@@ -93,37 +89,27 @@ theorem mutual_force_monotone (γ ξ r1 r2 : ℝ) (hγ : 0 < γ) (hξ : 0 < ξ)
 -- PART 3: The Conservative Potential Field (Gradient Law)
 -- =========================================================================
 
-/-- The mutual entropic potential energy between two particles at x1 and x2. -/
-def mutual_potential (γ C0 z : ℝ) (x1 x2 : ℝ) : ℝ :=
-  (γ / 2) * log (C0 * (1 - z ^ (2 * |x1 - x2|)))
-
 /-- Theorem: Conservative Field of Entropic Gravity.
-    The mutual entropic force is the negative gradient of the mutual entropic potential.
-    For any particle separation, the derivative of the potential with respect to x1
-    is exactly equal to - F_12. -/
-theorem mutual_potential_gradient (γ ξ C0 z : ℝ)
-    (hγ : 0 < γ) (hξ : 0 < ξ) (hz0 : 0 < z) (hz1 : z < 1)
-    (h_log_z : log z = -1 / ξ) (x1 x2 : ℝ) (h_sep : x2 < x1) (hC0 : 0 < C0) :
-    let U := fun (y : ℝ) => mutual_potential γ C0 z y x2
+    Now formulated using the explicit parameters of the unified covariance process. -/
+theorem mutual_potential_gradient {T : Type*} [MetricSpace T] {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    (P : ExponentialCovarianceProcess T E) (γ ξ : ℝ)
+    (hγ : 0 < γ) (hξ : 0 < ξ) (h_log_z : log P.z = -1 / ξ) (x1 x2 : ℝ) (h_sep : x2 < x1) :
+    let U := fun (y : ℝ) => (γ / 2) * log (P.C0 * (1 - P.z ^ (2 * |y - x2|)))
     HasDerivAt U (- mutual_force γ ξ x1 x2) x1 := by
   intro U
-  -- Locally around x1, the absolute value |y - x2| simplifies to y - x2 because x2 < x1.
   have h_nhds : Ioi x2 ∈ nhds x1 := IsOpen.mem_nhds isOpen_Ioi h_sep
-  have h_local : ∀ᶠ y in nhds x1, U y = (γ / 2) * log (C0 * (1 - z ^ (2 * (y - x2)))) := by
+  have h_local : ∀ᶠ y in nhds x1, U y = (γ / 2) * log (P.C0 * (1 - P.z ^ (2 * (y - x2)))) := by
     filter_upwards [h_nhds]
     intro y hy
-    dsimp [U, mutual_potential]
+    dsimp [U]
     have h_abs : |y - x2| = y - x2 := abs_of_pos (sub_pos.mpr hy)
     rw [h_abs]
 
-  -- Let V(u) be the shifted entropic potential
-  let V := fun (u : ℝ) => (γ / 2) * log (C0 * (1 - z ^ (2 * u)))
+  let V := fun (u : ℝ) => (γ / 2) * log (P.C0 * (1 - P.z ^ (2 * u)))
 
-  -- V has derivative - entropic_force at (x1 - x2) by our continuous potential derivative theorem
   have h_deriv_V : HasDerivAt V (- entropic_force γ ξ (x1 - x2)) (x1 - x2) := by
-    apply continuous_potential_deriv γ ξ C0 z hγ hξ hz0 hz1 h_log_z (x1 - x2) (sub_pos.mpr h_sep) hC0
+    apply continuous_potential_deriv P γ ξ hγ hξ h_log_z (x1 - x2) (sub_pos.mpr h_sep)
 
-  -- The coordinate shift function g(y) = y - x2 has derivative 1
   have h_deriv_g : HasDerivAt (fun y => y - x2) 1 x1 := by
     have h_id : HasDerivAt (fun y => y) 1 x1 := hasDerivAt_id x1
     have h_const : HasDerivAt (fun _ => x2) 0 x1 := hasDerivAt_const x1 x2
@@ -131,12 +117,10 @@ theorem mutual_potential_gradient (γ ξ C0 z : ℝ)
     rw [sub_zero] at h_sub
     exact h_sub
 
-  -- By the Chain Rule, the composition V ∘ (fun y => y - x2) has derivative - entropic_force * 1
   have h_deriv_comp : HasDerivAt (V ∘ (fun y => y - x2)) (- entropic_force γ ξ (x1 - x2) * 1) x1 := by
     exact HasDerivAt.comp x1 h_deriv_V h_deriv_g
   rw [mul_one] at h_deriv_comp
 
-  -- Transfer the derivative to U using the local neighborhood equivalence
   have h_final : HasDerivAt U (- mutual_force γ ξ x1 x2) x1 := by
     unfold mutual_force
     apply HasDerivAt.congr_of_eventuallyEq h_deriv_comp
@@ -144,7 +128,3 @@ theorem mutual_potential_gradient (γ ξ C0 z : ℝ)
     intro y hy
     exact hy
   exact h_final
-
-#print axioms mutual_potential_gradient
-#print axioms mutual_force_symmetric
-#print axioms mutual_force_monotone

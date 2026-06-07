@@ -14,7 +14,7 @@ open Real
 open RealInnerProductSpace
 
 -- =========================================================================
--- PART 1: The Unified Covariance Structure
+-- PART 1: The Unified Covariance Structure (Legacy Exponential)
 -- =========================================================================
 
 /-- A unified wide-sense stationary process with exponential covariance.
@@ -53,7 +53,7 @@ lemma norm_sub_smul_sq_real (x y : E) (β : ℝ) :
   ring
 
 -- =========================================================================
--- PART 2: Unified Unilateral Predictability
+-- PART 2: Legacy Unilateral Predictability
 -- =========================================================================
 
 /-- Theorem: Unified Unilateral Predictability.
@@ -78,13 +78,11 @@ theorem unilateral_optimal_mse (P : ExponentialCovarianceProcess T E) (x y : T) 
   ring
 
 -- =========================================================================
--- PART 3: Unified Bilateral Predictability & Spatial Markov Orthogonality
+-- PART 3: Legacy Bilateral Predictability & Spatial Markov Orthogonality
 -- =========================================================================
 
 /-- Theorem: Unified Spatial Markov Orthogonality.
-    Predicting u(x) from its boundary {u(a), u(b)} where x lies along a metric geodesic path
-    between a and b (dist(a, b) = dist(a, x) + dist(x, b)).
-    The optimal boundary predictor generates an error vector orthogonal to both boundary generators. -/
+    Predicting u(x) from its boundary {u(a), u(b)} where x lies along a metric geodesic path. -/
 theorem bilateral_orthogonality (P : ExponentialCovarianceProcess T E) (a x b : T)
     (d1 d2 d : ℝ) (hd1 : dist a x = d1) (hd2 : dist x b = d2) (hd : dist a b = d)
     (h_sum : d1 + d2 = d) (h_pos : 0 < d) :
@@ -183,9 +181,7 @@ lemma helper_power_relation (z d1 d2 d : ℝ) (hz0 : 0 < z) (h_sum : d1 + d2 = d
   rw [h_algebraic, h_pow1, h_pow2, h_pow3, h_pow4]
   ring
 
-/-- Theorem: Unified Bilateral Prediction Error.
-    Evaluates the squared norm of the error vector under the optimal bilateral predictor.
-    This holds for any metric-space representation. -/
+/-- Theorem: Unified Bilateral Prediction Error. -/
 theorem bilateral_optimal_mse (P : ExponentialCovarianceProcess T E) (a x b : T)
     (d1 d2 d : ℝ) (hd1 : dist a x = d1) (hd2 : dist x b = d2) (hd : dist a b = d)
     (h_sum : d1 + d2 = d) (h_pos : 0 < d) :
@@ -254,6 +250,157 @@ theorem bilateral_optimal_mse (P : ExponentialCovarianceProcess T E) (a x b : T)
 
 end ExponentialCovarianceProcess
 
+-- =========================================================================
+-- PART 4: The Generalized Covariance Process (GCP)
+-- =========================================================================
+
+/-- A generalized wide-sense stationary process with an arbitrary radial covariance kernel K.
+    Does not require exponential or Markovian decay. -/
+structure GeneralizedCovarianceProcess (T : Type*) [MetricSpace T]
+    (E : Type*) [NormedAddCommGroup E] [InnerProductSpace ℝ E] where
+  u : T → E
+  C0 : ℝ
+  K : ℝ → ℝ             -- The radial basis covariance kernel K(d)
+  hC0 : 0 < C0
+  hK0 : K 0 = 1         -- Normalization condition at dist = 0
+  cov : ∀ x y : T, inner ℝ (u x) (u y) = C0 * K (dist x y)
+
+namespace GeneralizedCovarianceProcess
+
+variable {T : Type*} [MetricSpace T] {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+
+/-- The norm squared of any node in the generalized process is exactly C0. -/
+lemma norm_sq_eq (P : GeneralizedCovarianceProcess T E) (x : T) :
+    ‖P.u x‖^2 = P.C0 := by
+  have h_inner : ‖P.u x‖^2 = inner ℝ (P.u x) (P.u x) := by rw [sq, ← real_inner_self_eq_norm_mul_norm]
+  rw [h_inner, P.cov x x, dist_self, P.hK0, mul_one]
+
+-- Reuse the general algebraic norm expansion helper
+lemma norm_sub_smul_sq_real (x y : E) (β : ℝ) :
+    ‖y - β • x‖^2 = ‖y‖^2 - 2 * β * inner ℝ y x + β^2 * ‖x‖^2 :=
+  ExponentialCovarianceProcess.norm_sub_smul_sq_real x y β
+
+-- =========================================================================
+-- PART 5: Generalized Unilateral Predictability
+-- =========================================================================
+
+/-- Theorem: Generalized Unilateral Predictability.
+    For any arbitrary radial covariance kernel K, the optimal predictor at distance d
+    yields an MSE of exactly C0 * (1 - K(d)^2). -/
+theorem generalized_unilateral_optimal_mse (P : GeneralizedCovarianceProcess T E) (x y : T) (d : ℝ) (hd : dist x y = d) :
+    let β_opt := P.K d
+    ‖P.u x - β_opt • P.u y‖^2 = P.C0 * (1 - (P.K d) ^ 2) := by
+  intro β_opt
+  rw [norm_sub_smul_sq_real, norm_sq_eq P x, norm_sq_eq P y]
+  rw [P.cov x y, hd]
+  unfold β_opt
+  ring
+
+-- =========================================================================
+-- PART 6: Generalized Bilateral Predictability & Projection Orthogonality
+-- =========================================================================
+
+/-- Theorem: Generalized Bilateral Orthogonality.
+    Predicting u(x) from its boundary {u(a), u(b)} for ANY general covariance kernel K.
+    The projection coefficients β1 and β2 are derived by solving the 2x2 normal equations.
+    The error is proved orthogonal to both boundary generators without Markovian assumptions. -/
+theorem generalized_bilateral_orthogonality (P : GeneralizedCovarianceProcess T E) (a x b : T)
+    (d1 d2 d : ℝ) (hd1 : dist a x = d1) (hd2 : dist x b = d2) (hd : dist a b = d)
+    (h_denom : 1 - (P.K d)^2 ≠ 0) :
+    let denom := 1 - (P.K d)^2
+    let β1 := (P.K d1 - P.K d2 * P.K d) / denom
+    let β2 := (P.K d2 - P.K d1 * P.K d) / denom
+    let Pred := β1 • P.u a + β2 • P.u b
+    inner ℝ (P.u x - Pred) (P.u a) = 0 ∧ inner ℝ (P.u x - Pred) (P.u b) = 0 := by
+  intro denom β1 β2 Pred
+  constructor
+  · simp only [Pred, inner_sub_left, inner_add_left, real_inner_smul_left,
+      starRingEnd_apply, star_trivial]
+    rw [P.cov x a, P.cov a a, P.cov b a]
+    rw [dist_comm x a, hd1, dist_self, P.hK0, mul_one, dist_comm b a, hd]
+    have h_sum : β1 * P.C0 + β2 * (P.C0 * P.K d) = P.C0 * P.K d1 := by
+      unfold β1 β2 denom
+      have h_calc : (P.K d1 - P.K d2 * P.K d) / (1 - (P.K d)^2) * P.C0 + (P.K d2 - P.K d1 * P.K d) / (1 - (P.K d)^2) * (P.C0 * P.K d) =
+          P.C0 * ((P.K d1 - P.K d2 * P.K d + (P.K d2 - P.K d1 * P.K d) * P.K d) / (1 - (P.K d)^2)) := by ring
+      rw [h_calc]
+      have h_simpl : P.K d1 - P.K d2 * P.K d + (P.K d2 - P.K d1 * P.K d) * P.K d = P.K d1 * (1 - (P.K d)^2) := by ring
+      rw [h_simpl]
+      rw [mul_div_cancel_right₀ _ h_denom]
+    rw [h_sum]
+    ring
+
+  · simp only [Pred, inner_sub_left, inner_add_left, real_inner_smul_left,
+      starRingEnd_apply, star_trivial]
+    rw [P.cov x b, P.cov a b, P.cov b b]
+    rw [hd2, hd, dist_self, P.hK0, mul_one]
+    have h_sum2 : β1 * (P.C0 * P.K d) + β2 * P.C0 = P.C0 * P.K d2 := by
+      unfold β1 β2 denom
+      have h_calc : (P.K d1 - P.K d2 * P.K d) / (1 - (P.K d)^2) * (P.C0 * P.K d) + (P.K d2 - P.K d1 * P.K d) / (1 - (P.K d)^2) * P.C0 =
+          P.C0 * (((P.K d1 - P.K d2 * P.K d) * P.K d + (P.K d2 - P.K d1 * P.K d)) / (1 - (P.K d)^2)) := by ring
+      rw [h_calc]
+      have h_simpl : (P.K d1 - P.K d2 * P.K d) * P.K d + (P.K d2 - P.K d1 * P.K d) = P.K d2 * (1 - (P.K d)^2) := by ring
+      rw [h_simpl]
+      rw [mul_div_cancel_right₀ _ h_denom]
+    rw [h_sum2]
+    ring
+/-- Theorem: Generalized Bilateral Prediction Error (Conditional Variance).
+    Evaluates the exact minimum prediction MSE under any arbitrary radial basis kernel K.
+    Reduces precisely to the legacy Markovian form when K is exponential. -/
+theorem generalized_bilateral_optimal_mse (P : GeneralizedCovarianceProcess T E) (a x b : T)
+    (d1 d2 d : ℝ) (hd1 : dist a x = d1) (hd2 : dist x b = d2) (hd : dist a b = d)
+    (h_denom : 1 - (P.K d)^2 ≠ 0) :
+    let denom := 1 - (P.K d)^2
+    let β1 := (P.K d1 - P.K d2 * P.K d) / denom
+    let β2 := (P.K d2 - P.K d1 * P.K d) / denom
+    let Pred := β1 • P.u a + β2 • P.u b
+    ‖P.u x - Pred‖^2 = P.C0 * ((1 - (P.K d)^2 - (P.K d1)^2 - (P.K d2)^2 + 2 * P.K d1 * P.K d2 * P.K d) / denom) := by
+  let denom := 1 - (P.K d)^2
+  let β1 := (P.K d1 - P.K d2 * P.K d) / denom
+  let β2 := (P.K d2 - P.K d1 * P.K d) / denom
+  let Pred := β1 • P.u a + β2 • P.u b
+  intro denom' β1' β2' Pred'
+  change ‖P.u x - Pred‖^2 = P.C0 * ((1 - (P.K d)^2 - (P.K d1)^2 - (P.K d2)^2 + 2 * P.K d1 * P.K d2 * P.K d) / denom)
+
+  have h_orth := generalized_bilateral_orthogonality P a x b d1 d2 d hd1 hd2 hd h_denom
+  have h_orth_a : inner ℝ (P.u x - Pred) (P.u a) = 0 := h_orth.left
+  have h_orth_b : inner ℝ (P.u x - Pred) (P.u b) = 0 := h_orth.right
+
+  have h_orth_P : inner ℝ (P.u x - Pred) Pred = 0 := by
+    unfold Pred
+    rw [inner_add_right, inner_smul_right, inner_smul_right]
+    rw [h_orth_a, h_orth_b, mul_zero, mul_zero, add_zero]
+
+  have h_norm_sq : ‖P.u x - Pred‖^2 = inner ℝ (P.u x - Pred) (P.u x - Pred) := by
+    rw [sq, ← real_inner_self_eq_norm_mul_norm]
+  have h_split : inner ℝ (P.u x - Pred) (P.u x - Pred) = inner ℝ (P.u x - Pred) (P.u x) - inner ℝ (P.u x - Pred) Pred := by
+    rw [inner_sub_right]
+  rw [h_norm_sq, h_split, h_orth_P, sub_zero]
+
+  have h_inner_ux : inner ℝ (P.u x - Pred) (P.u x) = inner ℝ (P.u x) (P.u x) - inner ℝ Pred (P.u x) := by
+    rw [inner_sub_left]
+  rw [h_inner_ux]
+
+  have h_self : inner ℝ (P.u x) (P.u x) = P.C0 := by
+    rw [real_inner_self_eq_norm_mul_norm, ← sq, norm_sq_eq P x]
+  rw [h_self]
+
+  have h_P_ux : inner ℝ Pred (P.u x) = β1 * inner ℝ (P.u a) (P.u x) + β2 * inner ℝ (P.u b) (P.u x) := by
+    unfold Pred
+    rw [inner_add_left, inner_smul_left, inner_smul_left, starRingEnd_apply, starRingEnd_apply, star_trivial, star_trivial]
+  rw [h_P_ux]
+
+  rw [P.cov a x, P.cov b x]
+  rw [hd1, dist_comm b x, hd2]
+
+  unfold β1 β2 denom
+  field_simp [h_denom]
+  ring
+end GeneralizedCovarianceProcess
+
+-- =========================================================================
+-- PART 7: Scale Parameters (Exponential Horizon Equivalence)
+-- =========================================================================
+
 /-- Unilateral predictability scale parameter `xi`. -/
 def xi (z : ℝ) : ℝ := -1 / Real.log z
 
@@ -263,8 +410,8 @@ def xi_abs_star (C0 z δ : ℝ) : ℝ := xi z / 2 * Real.log (1 / (1 - δ / C0))
 lemma xi_pos (z : ℝ) (hz0 : 0 < z) (hz1 : z < 1) : 0 < xi z := by
   have hz_lt : log z < 0 := (Real.log_neg_iff hz0).mpr hz1
   exact div_pos_of_neg_of_neg (by linarith) hz_lt
-/-- Theorem: The physical equivalent matching the discrete Unilateral Predictability Horizon limit.
-    The absolute MSE is bounded by δ if and only if the distance r satisfies r ≤ ξ_abs*. -/
+
+/-- Theorem: The physical equivalent matching the discrete Unilateral Predictability Horizon limit. -/
 theorem unilateral_horizon_equivalence (C0 z δ r : ℝ)
     (hC0 : 0 < C0) (hz0 : 0 < z) (hz1 : z < 1) (hδ0 : 0 < δ) (hδ : δ < C0) :
     C0 * (1 - exp (2 * r * log z)) ≤ δ ↔ r ≤ xi_abs_star C0 z δ := by
@@ -273,7 +420,6 @@ theorem unilateral_horizon_equivalence (C0 z δ r : ℝ)
     have h_div : δ / C0 < 1 := (div_lt_one hC0).mpr hδ
     linarith
   unfold xi_abs_star xi
-  -- Equivalence chain
   have h1 : C0 * (1 - exp (2 * r * log z)) ≤ δ ↔ 1 - exp (2 * r * log z) ≤ δ / C0 := by
     rw [mul_comm, le_div_iff₀ hC0]
   have h2 : 1 - exp (2 * r * log z) ≤ δ / C0 ↔ 1 - δ / C0 ≤ exp (2 * r * log z) := by

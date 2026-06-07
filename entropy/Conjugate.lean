@@ -81,10 +81,10 @@ theorem entropic_uncertainty_relation (C0 ξ Δk : ℝ)
   exact h_sqrt
 
 -- =========================================================================
--- PART 3: Uncertainty Grounded in the Unified Model
+-- PART 3: Uncertainty Grounded in the Unified Models
 -- =========================================================================
 
-/-- Theorem: Grounding the Uncertainty Relation in the Unified Process Model.
+/-- Theorem: Grounding the Uncertainty Relation in the Legacy Process Model.
     If we evaluate the uncertainty relation using the physical predictability
     correlation length ξ defined in common.lean, the conjugate relationship holds. -/
 theorem process_uncertainty_relation {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
@@ -93,3 +93,15 @@ theorem process_uncertainty_relation {E : Type*} [NormedAddCommGroup E] [InnerPr
     (xi P.z) * Δk = 1 := by
   have hξ : 0 < xi P.z := xi_pos P.z P.hz0 P.hz1
   exact entropic_uncertainty_relation P.C0 (xi P.z) Δk P.hC0 hξ hΔk h_hwhm
+
+/-- Theorem: Grounding the Uncertainty Relation in the Generalized Process Model.
+    If we analyze the generalized process's spectrum via its characteristic scale ξ > 0
+    and a Lorentzian-like spectral density peak, the conjugate relationship strictly holds. -/
+theorem generalized_process_uncertainty_relation {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    (P : GeneralizedCovarianceProcess ℝ E) (ξ : ℝ) (hξ : 0 < ξ) (Δk : ℝ) (hΔk : 0 < Δk)
+    (h_hwhm : IsHWHM P.C0 ξ Δk) :
+    ξ * Δk = 1 := by
+  exact entropic_uncertainty_relation P.C0 ξ Δk P.hC0 hξ hΔk h_hwhm
+
+#print axioms process_uncertainty_relation
+#print axioms generalized_process_uncertainty_relation

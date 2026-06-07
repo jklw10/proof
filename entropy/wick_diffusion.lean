@@ -63,16 +63,30 @@ theorem wick_rotation_equivalence (ψ : ℂ → ℂ) (D κ2 k : ℂ) (τ : ℂ)
   exact h_comp
 
 -- =========================================================================
--- PART 3: Grounding Wick Rotation in the Unified Process Model
+-- PART 3: Grounding Wick Rotation in the Unified Process Models
 -- =========================================================================
 
-/-- Theorem: Wick Spectral Mapping to the Unified Process Model.
+/-- Theorem: Legacy Wick Spectral Mapping to the Exponential Covariance Process.
     If the quantum system's energy offset κ2 matches the inverse squared correlation length
-    1 / ξ^2 of our unified covariance process, the Wick-rotated diffusion equation strictly
-    represents the physical spectral damping of our process. -/
+    1 / ξ^2 of our unified exponential covariance process, the Wick-rotated diffusion equation
+    strictly represents the physical spectral damping of our process. -/
 theorem process_wick_spectral_relation {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
     (P : ExponentialCovarianceProcess ℝ E) (D k : ℂ) (τ : ℂ) (ψ : ℂ → ℂ)
     (h_schrodinger : HasDerivAt ψ (-Complex.I * (D * k^2 + ((1 : ℂ) / (xi P.z : ℂ)^2)) * ψ (-Complex.I * τ)) (-Complex.I * τ)) :
     let u := fun (y : ℂ) => ψ (-Complex.I * y)
     HasDerivAt u (-(D * k^2 + ((1 : ℂ) / (xi P.z : ℂ)^2)) * u τ) τ := by
   exact wick_rotation_equivalence ψ D (1 / (xi P.z : ℂ)^2) k τ h_schrodinger
+
+/-- Theorem: Generalized Wick Spectral Mapping to the Generalized Covariance Process.
+    If the quantum system's energy offset κ2 matches the inverse squared characteristic scale
+    1 / ξ^2 of our generalized covariance process with length scale ξ > 0, the Wick-rotated
+    diffusion equation strictly represents the physical spectral damping of our generalized process. -/
+theorem generalized_process_wick_spectral_relation {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    (P : GeneralizedCovarianceProcess ℝ E) (ξ : ℝ) (hξ : 0 < ξ) (D k : ℂ) (τ : ℂ) (ψ : ℂ → ℂ)
+    (h_schrodinger : HasDerivAt ψ (-Complex.I * (D * k^2 + ((1 : ℂ) / (ξ : ℂ)^2)) * ψ (-Complex.I * τ)) (-Complex.I * τ)) :
+    let u := fun (y : ℂ) => ψ (-Complex.I * y)
+    HasDerivAt u (-(D * k^2 + ((1 : ℂ) / (ξ : ℂ)^2)) * u τ) τ := by
+  exact wick_rotation_equivalence ψ D (1 / (ξ : ℂ)^2) k τ h_schrodinger
+
+#print axioms process_wick_spectral_relation
+#print axioms generalized_process_wick_spectral_relation

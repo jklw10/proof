@@ -43,13 +43,28 @@ def discrete_to_unified (u : ℤ → E) (C0 z : ℝ)
     rw [Int.dist_eq]
     exact h_cov x y
 
+/-- Helper function: Maps a discrete process u: ℤ → E with any arbitrary radial covariance kernel K
+    to the generalized unified framework. -/
+def discrete_to_generalized_unified (u : ℤ → E) (C0 : ℝ) (K : ℝ → ℝ)
+    (h_cov : ∀ x y : ℤ, inner ℝ (u x) (u y) = C0 * K |(x : ℝ) - (y : ℝ)|)
+    (hC0 : 0 < C0) (hK0 : K 0 = 1) : GeneralizedCovarianceProcess ℤ E where
+  u := u
+  C0 := C0
+  K := K
+  hC0 := hC0
+  hK0 := hK0
+  cov := by
+    intro x y
+    rw [Int.dist_eq]
+    exact h_cov x y
+
 end DiscreteSetup
 
 section HilbertPredictors
 
 variable {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
 
-/-- Theorem: Specialized discrete bilateral limit.
+/-- Theorem: Specialized legacy discrete bilateral limit.
     If we predict node y using its nearest symmetric neighbors u = x_neg1 + x_1,
     the resulting optimal MSE corresponds exactly to the discrete bilateral horizon limit. -/
 theorem discrete_bilateral_optimal_mse (u : ℤ → E) (C0 z : ℝ)
@@ -192,6 +207,78 @@ theorem discrete_bilateral_optimal_mse (u : ℤ → E) (C0 z : ℝ)
     field_simp
 
   rw [h_ratio_eq]
+
+/-- Theorem: Specialized discrete bilateral limit for arbitrary covariance kernel K.
+    If we predict node y using its nearest symmetric neighbors u = x_neg1 + x_1,
+    the resulting optimal MSE is C0 * (1 - 2 * K(1)^2 / (1 + K(2))). -/
+theorem generalized_discrete_bilateral_optimal_mse (u : ℤ → E) (C0 : ℝ) (K : ℝ → ℝ)
+    (h_cov : ∀ x y : ℤ, inner ℝ (u x) (u y) = C0 * K |(x : ℝ) - (y : ℝ)|)
+    (hC0 : 0 < C0) (hK0 : K 0 = 1) (y_idx : ℤ) (h_denom : 1 + K 2 ≠ 0) :
+    let P := discrete_to_generalized_unified u C0 K h_cov hC0 hK0
+    let x_neg1 := P.u (y_idx - 1)
+    let x_1 := P.u (y_idx + 1)
+    let y := P.u y_idx
+    let u_comb := x_neg1 + x_1
+    let β_opt := inner ℝ u_comb y / ‖u_comb‖^2
+    ‖y - β_opt • u_comb‖^2 = C0 * (1 - 2 * (K 1)^2 / (1 + K 2)) := by
+  intro P x_neg1 x_1 y u_comb β_opt
+
+  have h_inner_comb_y : inner ℝ u_comb y = 2 * C0 * K 1 := by
+    unfold u_comb x_neg1 x_1 y
+    dsimp [P, discrete_to_generalized_unified]
+    simp only [inner_add_left]
+    rw [h_cov (y_idx - 1) y_idx, h_cov (y_idx + 1) y_idx]
+    have h_diff1 : |((y_idx - 1 : ℤ) : ℝ) - (y_idx : ℝ)| = 1 := by
+      push_cast; ring_nf; norm_num
+    have h_diff2 : |((y_idx + 1 : ℤ) : ℝ) - (y_idx : ℝ)| = 1 := by
+      push_cast; ring_nf; norm_num
+    rw [h_diff1, h_diff2]
+    ring
+
+  have h_norm_comb : ‖u_comb‖^2 = 2 * C0 * (1 + K 2) := by
+    unfold u_comb x_neg1 x_1
+    dsimp [P, discrete_to_generalized_unified]
+    have h_sq : ‖u (y_idx - 1) + u (y_idx + 1)‖^2 =
+        inner ℝ (u (y_idx - 1) + u (y_idx + 1)) (u (y_idx - 1) + u (y_idx + 1)) := by
+      rw [sq, ← real_inner_self_eq_norm_mul_norm]
+    rw [h_sq]
+    simp only [inner_add_left, inner_add_right]
+    rw [h_cov (y_idx - 1) (y_idx - 1), h_cov (y_idx + 1) (y_idx + 1),
+        h_cov (y_idx + 1) (y_idx - 1), h_cov (y_idx - 1) (y_idx + 1)]
+    have h_sub_self1 : |((y_idx - 1 : ℤ) : ℝ) - ((y_idx - 1 : ℤ) : ℝ)| = 0 := by
+      rw [sub_self, abs_zero]
+    have h_sub_self2 : |((y_idx + 1 : ℤ) : ℝ) - ((y_idx + 1 : ℤ) : ℝ)| = 0 := by
+      rw [sub_self, abs_zero]
+    have h_sub_diff1 : |((y_idx + 1 : ℤ) : ℝ) - ((y_idx - 1 : ℤ) : ℝ)| = 2 := by
+      push_cast; ring_nf; norm_num
+    have h_sub_diff2 : |((y_idx - 1 : ℤ) : ℝ) - ((y_idx + 1 : ℤ) : ℝ)| = 2 := by
+      push_cast; ring_nf; norm_num
+    rw [h_sub_self1, h_sub_self2, h_sub_diff1, h_sub_diff2]
+    rw [hK0]
+    ring
+
+  have h_β_opt : β_opt = K 1 / (1 + K 2) := by
+    unfold β_opt
+    rw [h_inner_comb_y, h_norm_comb]
+    have hC0_ne : C0 ≠ 0 := by linarith
+    field_simp
+
+  have h_expansion : ‖y - β_opt • u_comb‖^2 = ‖y‖^2 - 2 * β_opt * inner ℝ y u_comb + β_opt^2 * ‖u_comb‖^2 := by
+        exact GeneralizedCovarianceProcess.norm_sub_smul_sq_real u_comb y β_opt
+
+  have h_norm_y : ‖y‖^2 = C0 := by
+    unfold y
+    dsimp [P, discrete_to_generalized_unified]
+    have h_sq' : ‖u y_idx‖^2 = inner ℝ (u y_idx) (u y_idx) := by
+      rw [sq, ← real_inner_self_eq_norm_mul_norm]
+    rw [h_sq', h_cov y_idx y_idx, sub_self, abs_zero, hK0, mul_one]
+
+  rw [h_expansion, h_norm_y, h_norm_comb, h_β_opt]
+  have h_comm : inner ℝ y u_comb = inner ℝ u_comb y := real_inner_comm u_comb y
+  rw [h_comm, h_inner_comb_y]
+  field_simp
+  ring
+
 end HilbertPredictors
 
 section SpatialMarkov
@@ -199,7 +286,7 @@ section SpatialMarkov
 /-- Theorem: Spatial Markov Property (Bilateral Minimality).
     For any linear combination of a 4-node neighborhood {x_{-2}, x_{-1}, x_1, x_2},
     the bilateral boundary predictor P = β * x_{-1} + β * x_1 yields the absolute minimum MSE.
-    Now formalized elegantly under the unified metric space framework. -/
+    This strictly holds for ExponentialCovarianceProcesses (due to their unique Markov property). -/
 theorem spatial_markov_property_optimality {T : Type*} [MetricSpace T] {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
     (P : ExponentialCovarianceProcess T E) (x_neg2 x_neg1 y x_1 x_2 : T)
     (hd_neg2_neg1 : dist x_neg2 x_neg1 = 1)
@@ -306,3 +393,6 @@ theorem spatial_markov_property_optimality {T : Type*} [MetricSpace T] {E : Type
   linarith
 
 end SpatialMarkov
+
+#print axioms spatial_markov_property_optimality
+#print axioms generalized_discrete_bilateral_optimal_mse

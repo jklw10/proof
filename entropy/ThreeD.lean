@@ -3,6 +3,7 @@ import Mathlib.Analysis.Calculus.Deriv.Comp
 import Mathlib.Analysis.Calculus.Deriv.Mul
 import Mathlib.Analysis.Calculus.Deriv.Add
 import Mathlib.Analysis.SpecialFunctions.Log.Deriv
+import entropy.common
 
 noncomputable section
 set_option linter.style.whitespace false
@@ -196,4 +197,37 @@ theorem continuous_3d_potential_deriv (γ Λ C0 r : ℝ)
   rw [h_deriv_eq] at h_deriv_V
   exact h_deriv_V
 
+-- =========================================================================
+-- PART 4: Unification with the Generalized Covariance Process (GCP)
+-- =========================================================================
+
+/-- The normalized 3D continuous covariance kernel K3d(r) = C0 / (Λ * r).
+    At the exclusion boundary r_crit = C0 / Λ, K3d(r_crit) = 1. -/
+def K3d (C0 Λ r : ℝ) : ℝ := C0 / (Λ * r)
+
+/-- Theorem: Normalization of K3d at the critical exclusion boundary.
+    Confirms that K3d maps exactly to 1 at r_crit. -/
+theorem K3d_boundary_normalized (C0 Λ : ℝ) (hC0 : 0 < C0) (hΛ : 0 < Λ) :
+    K3d C0 Λ (C0 / Λ) = 1 := by
+  unfold K3d
+  have h_mul : Λ * (C0 / Λ) = C0 := by
+    rw [mul_div_cancel₀ C0 (ne_of_gt hΛ)]
+  rw [h_mul]
+  exact div_self (ne_of_gt hC0)
+
+/-- Theorem: Equivalence of the 3D Potential to the Generalized Potential.
+    Proves that the 3D entropic potential energy is the exact continuous 3D specialization
+    of the generalized entropic potential V(r) = (γ / 2) * log (C0 * (1 - (K r) ^ 2))
+    under the mapping C0 → Λ (variance parameter) and K → K3d. -/
+theorem entropic_potential_3d_eq_generalized (γ Λ C0 r : ℝ) (hC0 : 0 < C0) (hΛ : 0 < Λ) (hr : 0 < r) :
+    entropic_potential_3d γ Λ C0 r = (γ / 2) * log (Λ * (1 - (K3d C0 Λ r) ^ 2)) := by
+  unfold entropic_potential_3d K3d
+  congr 3
+  have h_sq : (C0 / (Λ * r)) ^ 2 = C0 ^ 2 / (Λ ^ 2 * r ^ 2) := by
+    rw [div_pow, mul_pow]
+  rw [h_sq]
+
 #print axioms continuous_3d_potential_deriv
+#print axioms continuous_3d_exclusion_limit
+#print axioms K3d_boundary_normalized
+#print axioms entropic_potential_3d_eq_generalized

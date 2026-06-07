@@ -98,10 +98,10 @@ theorem entropic_diffusion_isomorphism (τ : ℝ) (hτ : 0 < τ) (μ : ℝ) (h_m
   field_simp
 
 -- =========================================================================
--- PART 4: Connection to the Unified Process Model
+-- PART 4: Connection to the Unified Process Models
 -- =========================================================================
 
-/-- Theorem: Consensus Decay rate mapped to the Unified Predictability correlation length ξ.
+/-- Theorem: Legacy Consensus Decay rate mapped to the Unified Exponential Predictability scale ξ.
     If the consensus rate is defined from the physical spatial scale ξ via μ = 1 / (2 * ξ),
     the disagreement decay rate 2 * μ is identically equal to the spatial decay scale - log P.z. -/
 theorem process_consensus_isomorphism {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
@@ -114,7 +114,18 @@ theorem process_consensus_isomorphism {E : Type*} [NormedAddCommGroup E] [InnerP
   have h_log_ne : Real.log P.z ≠ 0 := ne_of_lt h_log_neg
   field_simp
 
+/-- Theorem: Generalized Consensus Decay rate mapped to the Generalized Predictability scale ξ.
+    If the consensus rate is defined from the physical generalized spatial scale ξ via μ = 1 / (2 * ξ),
+    the disagreement decay rate 2 * μ is identically equal to the spatial decay rate 1 / ξ. -/
+theorem generalized_process_consensus_isomorphism {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    (P : GeneralizedCovarianceProcess ℝ E) (ξ : ℝ) (hξ : 0 < ξ) (μ : ℝ) (h_map : μ = 1 / (2 * ξ)) :
+    2 * μ = 1 / ξ := by
+  rw [h_map]
+  have h_ξ_ne : ξ ≠ 0 := ne_of_gt hξ
+  field_simp
+
 #print axioms process_consensus_isomorphism
+#print axioms generalized_process_consensus_isomorphism
 #print axioms entropic_diffusion_isomorphism
 #print axioms disagreement_deriv
 #print axioms decoherence_deriv

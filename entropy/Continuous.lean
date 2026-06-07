@@ -301,3 +301,6 @@ theorem continuous_bilateral_optimal_mse (u : ℝ → E) (C0 z : ℝ)
   ring
 
 end ContinuousBilateral
+
+#print axioms continuous_unilateral_horizon_limit
+#print axioms continuous_bilateral_optimal_mse

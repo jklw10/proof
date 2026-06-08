@@ -12,6 +12,11 @@ import Mathlib.Analysis.SpecialFunctions.Pow.Asymptotics
 import Mathlib.Analysis.Calculus.Deriv.Basic
 import Mathlib.Algebra.Order.Field.Basic
 import Mathlib.MeasureTheory.Integral.Bochner.Set
+import Mathlib.Analysis.SpecialFunctions.Integrals.Basic
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
+import Mathlib.Order.Disjoint
+import Mathlib.Order.Interval.Set.Basic
+
 set_option linter.style.whitespace false
 set_option linter.unusedVariables false
 set_option linter.style.emptyLine false
@@ -24,6 +29,7 @@ open Real
 open Filter
 open Topology
 open MeasureTheory
+open Set
 open Asymptotics
 
 -- =========================================================================
@@ -294,14 +300,62 @@ lemma boundary_term_decay (f : ℝ → ℝ)
 -- =========================================================================
 
 /-- Helper Lemma: Partition of the total continuous probability mass (1) into three domains. -/
-axiom integral_partition_of_one (f : ℝ → ℝ) (hf_nonneg : ∀ x, 0 ≤ f x) (hf_norm : ∫ x, f x = 1) (b : ℝ) :
-  (∫ x in Set.Iic (-b), f x) + (∫ x in Set.Icc (-b) b, f x) + (∫ x in Set.Ici b, f x) = 1
+lemma integral_partition_of_one (f : ℝ → ℝ) (hf_integrable : Integrable f) (hf_norm : ∫ x, f x = 1) (b : ℝ) (hb : 0 ≤ b) :
+    (∫ x in Iic (-b), f x) + (∫ x in Ico (-b) b, f x) + (∫ x in Ici b, f x) = 1 := by
+
+  -- Step 1: Combine [-b, b) and [b, ∞) into [-b, ∞)
+  have h_union1 : Ico (-b) b ∪ Ici b = Ici (-b) := by
+    exact Ico_union_Ici_eq_Ici (by linarith)
+
+  have h_disj1 : Disjoint (Ico (-b) b) (Ici b) := by
+    rw [Set.disjoint_left]
+    rintro x hx_co hx_ci
+    rw [Set.mem_Ico] at hx_co
+    rw [Set.mem_Ici] at hx_ci
+    have hx_lt_b := hx_co.2
+    have hb_le_x := hx_ci
+    linarith
+
+  have h_int1 : (∫ x in Ico (-b) b, f x) + (∫ x in Ici b, f x) = ∫ x in Ici (-b), f x := by
+    rw [← setIntegral_union h_disj1 measurableSet_Ici hf_integrable.restrict hf_integrable.restrict]
+    rw [h_union1]
+
+  -- Step 2: Combine (-∞, -b] and [-b, ∞) to cover the whole real line ℝ
+  rw [add_assoc, h_int1]
+  have h_disj2 : Disjoint (Iic (-b)) (Ioi (-b)) := by
+    rw [Set.disjoint_left]
+    rintro x hx_ic hx_oi
+    rw [Set.mem_Iic] at hx_ic
+    rw [Set.mem_Ioi] at hx_oi
+    linarith
+
+  have h_int2 : (∫ x in Iic (-b), f x) + (∫ x in Ici (-b), f x) = ∫ x in Set.univ, f x := by
+    -- We can use Ioi (-b) instead of Ici (-b) because the single point {-b} has measure 0.
+    have h_ae : Ici (-b) =ᵐ[volume] Ioi (-b) := (Ioi_ae_eq_Ici).symm
+    have h_eq : ∫ x in Ici (-b), f x = ∫ x in Ioi (-b), f x := setIntegral_congr_set h_ae
+    rw [h_eq]
+    rw [← setIntegral_union h_disj2 measurableSet_Ioi hf_integrable.restrict hf_integrable.restrict]
+    have h_union2 : Iic (-b) ∪ Ioi (-b) = Set.univ := by
+      exact Iic_union_Ioi
+    rw [h_union2]
+
+  rw [h_int2]
+  rw [setIntegral_univ]
+  exact hf_norm
 
 /-- Helper Lemma: Splits the boundary term (i = N) off from the closed interval Riemann sum. -/
-axiom finset_sum_endpoint_split (f : ℝ → ℝ) (N : ℤ) (Δx : ℝ) :
-  ∑ i ∈ Finset.Icc (-N) N, f ((i : ℝ) * Δx) * Δx =
-  (∑ i ∈ Finset.Ico (-N) N, f ((i : ℝ) * Δx) * Δx) + f ((N : ℝ) * Δx) * Δx
-
+lemma finset_sum_endpoint_split_nat (f : ℝ → ℝ) (N : ℕ) (Δx : ℝ) :
+    ∑ i ∈ Finset.Icc (-(N : ℤ)) (N : ℤ), f ((i : ℝ) * Δx) * Δx =
+    (∑ i ∈ Finset.Ico (-(N : ℤ)) (N : ℤ), f ((i : ℝ) * Δx) * Δx) + f (((N : ℤ) : ℝ) * Δx) * Δx := by
+  have h_le : -(N : ℤ) ≤ (N : ℤ) := by omega
+  have h_not_mem : (N : ℤ) ∉ Finset.Ico (-(N : ℤ)) (N : ℤ) := by
+    simp only [Finset.mem_Ico, lt_self_iff_false, and_false, not_false_iff]
+  have h_insert : Finset.Icc (-(N : ℤ)) (N : ℤ) = insert (N : ℤ) (Finset.Ico (-(N : ℤ)) (N : ℤ)) := by
+    symm
+    apply Finset.Ico_insert_right h_le
+  rw [h_insert]
+  rw [Finset.sum_insert h_not_mem]
+  ring
 
 /-- Theorem: Splitting of 1 = ∫ x, f(x) and bounds the overall error via triangle inequality. -/
 theorem integral_split_and_error_decomp (f : ℝ → ℝ) (hf_nonneg : ∀ x, 0 ≤ f x) (hf_norm : ∫ x, f x = 1) (N : ℕ) (hN : 0 < N) :
@@ -317,27 +371,42 @@ theorem integral_split_and_error_decomp (f : ℝ → ℝ) (hf_nonneg : ∀ x, 0 
       f (b) * Δx := by
   intro σ Δx b s s'
 
-  -- 1. Use the partition of 1 and the splitting of the discrete sum
-  have h_part := integral_partition_of_one f hf_nonneg hf_norm b
-  have h_sum_split := finset_sum_endpoint_split f (N : ℤ) Δx
+  -- 1. Derive integrability from the fact that its Bochner integral is 1 (non-zero)
+  have h_ne_zero : ∫ x, f x ≠ 0 := by
+    rw [hf_norm]
+    norm_num
+  have hf_int : Integrable f := MeasureTheory.Integrable.of_integral_ne_zero h_ne_zero
+
+  -- Compute nonnegativity of boundaries for the partition lemma
+  have h_σ_pos : 0 < σ := by
+    have hN_pos : 0 < (N : ℝ) := by positivity
+    exact div_pos (Real.sqrt_pos.mpr hN_pos) (by linarith)
+  have h_Δx_pos : 0 < Δx := div_pos (by linarith) h_σ_pos
+  have hb_nonneg : 0 ≤ b := by
+    have hN_nonneg : 0 ≤ (N : ℝ) := by positivity
+    exact mul_nonneg hN_nonneg h_Δx_pos.le
+
+  -- 2. Use the partition of 1
+  have h_part := integral_partition_of_one f hf_int hf_norm b hb_nonneg
+  have h_sum_split := finset_sum_endpoint_split_nat f N Δx
 
   -- Clean up coercions in h_sum_split to match s, s', and b
   have h_cast : ((N : ℤ) : ℝ) = (N : ℝ) := by norm_cast
   rw [h_cast] at h_sum_split
   change ∑ i ∈ s, f (i * Δx) * Δx = (∑ i ∈ s', f (i * Δx) * Δx) + f b * Δx at h_sum_split
 
-  -- 2. Substitute both partitions into the left-hand side
+  -- 3. Substitute both partitions into the left-hand side
   rw [← h_part, h_sum_split]
 
-  -- 3. Rearrange terms algebraically under the absolute value
-  have h_algebra : (∫ x in Set.Iic (-b), f x) + (∫ x in Set.Icc (-b) b, f x) + (∫ x in Set.Ici b, f x) -
+  -- 4. Rearrange terms algebraically under the absolute value using Ico
+  have h_algebra : (∫ x in Set.Iic (-b), f x) + (∫ x in Set.Ico (-b) b, f x) + (∫ x in Set.Ici b, f x) -
       ((∑ i ∈ s', f (i * Δx) * Δx) + f b * Δx) =
       (∫ x in Set.Iic (-b), f x) +
-      (((∫ x in Set.Icc (-b) b, f x) - (∑ i ∈ s', f (i * Δx) * Δx)) +
+      (((∫ x in Set.Ico (-b) b, f x) - (∑ i ∈ s', f (i * Δx) * Δx)) +
       (∫ x in Set.Ici b, f x) - f b * Δx) := by ring
   rw [h_algebra]
 
-  -- 4. Define standard non-negativity of set integration
+  -- 5. Define standard non-negativity of set integration
   have h_nonneg_Iic : 0 ≤ ∫ x in Set.Iic (-b), f x := by
     exact MeasureTheory.setIntegral_nonneg measurableSet_Iic (fun x _ => hf_nonneg x)
 
@@ -352,7 +421,7 @@ theorem integral_split_and_error_decomp (f : ℝ → ℝ) (hf_nonneg : ∀ x, 0 
     have h_Δx_pos : 0 < Δx := div_pos (by linarith) h_σ_pos
     exact mul_nonneg hf_val h_Δx_pos.le
 
-  -- 5. Establish absolute value simplification equations for non-negative terms
+  -- 6. Establish absolute value simplification equations for non-negative terms
   have h_abs_Iic : |∫ x in Set.Iic (-b), f x| = ∫ x in Set.Iic (-b), f x :=
     abs_of_nonneg h_nonneg_Iic
 
@@ -362,7 +431,14 @@ theorem integral_split_and_error_decomp (f : ℝ → ℝ) (hf_nonneg : ∀ x, 0 
   have h_abs_neg_bound : |- (f b * Δx)| = f b * Δx := by
     rw [abs_neg, abs_of_nonneg h_nonneg_bound]
 
-  -- 6. State and rearrange the three triangle inequalities in the context
+  -- 7. Rewrite Set.Ico to Set.Icc everywhere before setting up triangle inequalities
+  have h_Ico_ae : Ico (-b) b =ᵐ[volume] Icc (-b) b := by
+    exact Ico_ae_eq_Icc
+  have h_Ico_eq_Icc : ∫ x in Set.Ico (-b) b, f x = ∫ x in Set.Icc (-b) b, f x := by
+    exact setIntegral_congr_set h_Ico_ae
+  rw [h_Ico_eq_Icc]
+
+  -- 8. State and rearrange the three triangle inequalities in the context
   have h_step1 := abs_add_le (∫ x in Set.Iic (-b), f x)
     (((∫ x in Set.Icc (-b) b, f x) - (∑ i ∈ s', f (i * Δx) * Δx)) +
     (∫ x in Set.Ici b, f x) - f b * Δx)
@@ -388,7 +464,7 @@ theorem integral_split_and_error_decomp (f : ℝ → ℝ) (hf_nonneg : ∀ x, 0 
     abs_add_le (∫ x in Set.Ici b, f x) (- (f b * Δx))
   rw [← h_rearrange3] at h_step3
 
-  -- 7. Combine the triangle inequalities linearly to close the goal
+  -- 9. Combine the triangle inequalities linearly to close the goal
   linarith
 
 lemma scaling_error_rate_bound (f : ℝ → ℝ)

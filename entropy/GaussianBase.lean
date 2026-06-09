@@ -13,6 +13,8 @@ set_option linter.style.emptyLine false
 def standard_normal_pdf (x : ℝ) : ℝ :=
   (1 / Real.sqrt (2 * Real.pi)) * exp (- x^2 / 2)
 
+
+
 /-- The standard Gaussian is continuous everywhere. -/
 lemma standard_normal_continuous : Continuous standard_normal_pdf := by
   unfold standard_normal_pdf
@@ -75,6 +77,11 @@ lemma standard_normal_deriv (x : ℝ) :
     ring --here
   rw [h_goal_eq] at h_scaled
   exact h_scaled
+
+/-- The standard Gaussian is differentiable everywhere. -/
+lemma standard_normal_differentiable : Differentiable ℝ standard_normal_pdf := by
+  intro x
+  exact (standard_normal_deriv x).differentiableAt
 
 /-- Normalization property proven using Mathlib's `integral_gaussian` -/
 theorem standard_normal_integral_eq_one : ∫ x : ℝ, standard_normal_pdf x = 1 := by

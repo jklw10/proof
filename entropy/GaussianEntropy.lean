@@ -210,6 +210,20 @@ lemma standard_normal_second_moment : ∫ x : ℝ, x^2 * standard_normal_pdf x =
   · exact integrable_deriv_helper
   · exact integrable_standard_normal_pdf
 
+/-- The standard normal entropy density is integrable on the real line. -/
+lemma integrable_standard_normal_entropy :
+    Integrable (fun x : ℝ => standard_normal_pdf x * log (standard_normal_pdf x)) := by
+  have h_eq : (fun x : ℝ => standard_normal_pdf x * log (standard_normal_pdf x)) =
+               (fun x : ℝ => - (1/2) * log (2 * Real.pi) * standard_normal_pdf x - (1/2) * (x^2 * standard_normal_pdf x)) := by
+    ext x
+    rw [log_standard_normal_pdf x]
+    ring
+  rw [h_eq]
+  apply Integrable.sub
+  · apply Integrable.const_mul
+    exact integrable_standard_normal_pdf
+  · apply Integrable.const_mul
+    exact integrable_x_sq_mul_standard_normal_pdf
 
 /-- The exact evaluation of the continuous differential entropy of the standard normal distribution. -/
 theorem continuous_standard_normal_entropy :
@@ -236,3 +250,11 @@ theorem continuous_standard_normal_entropy :
   · -- Prove integrability of second term
     apply Integrable.const_mul
     exact integrable_x_sq_mul_standard_normal_pdf
+
+/-- The entropy density of a positive, differentiable PDF is differentiable. -/
+lemma differentiable_entropy_density (f : ℝ → ℝ) (hf : Differentiable ℝ f) (h_pos : ∀ x, 0 < f x) :
+    Differentiable ℝ (fun x => f x * Real.log (f x)) := by
+  apply Differentiable.mul hf
+  apply Differentiable.log hf
+  intro x
+  exact (h_pos x).ne'

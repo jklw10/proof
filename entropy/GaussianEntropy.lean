@@ -1,5 +1,4 @@
 import Mathlib.Analysis.SpecialFunctions.Gaussian.GaussianIntegral
-import entropy.GaussianBase
 import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
 import Mathlib.MeasureTheory.Integral.Bochner.Set
 import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
@@ -13,6 +12,8 @@ import Mathlib.Analysis.SpecialFunctions.Exponential
 import Mathlib.Analysis.SpecialFunctions.Gaussian.PoissonSummation
 import Mathlib.MeasureTheory.Measure.Lebesgue.Basic
 import Mathlib.Topology.Order.Compact
+
+import entropy.GaussianBase
 
 open Real
 open MeasureTheory
